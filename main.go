@@ -287,12 +287,26 @@ func main() {
 		name  = flag.String("model", "current", "Model name")
 		key   = flag.String("key", "", "API key")
 		debug = flag.Bool("debug", false, "Debug mode")
+		agent = flag.String("acp", "", "ACP agent command, e.g. \"npx @zed-industries/claude-code-acp\" (replaces --openai)")
 	)
 	flag.Parse()
 
-	cm, err := openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
-		BaseURL: *url, APIKey: *key, Model: *name,
-	})
+	var (
+		cm  model.BaseChatModel
+		err error
+	)
+	if *agent != "" {
+		cwd, _ := os.Getwd()
+		var a *acpModel
+		if a, err = newACP(context.Background(), strings.Fields(*agent), cwd); err == nil {
+			defer a.Close()
+			cm = a
+		}
+	} else {
+		cm, err = openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
+			BaseURL: *url, APIKey: *key, Model: *name,
+		})
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
